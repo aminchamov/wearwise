@@ -13,10 +13,11 @@ app = FastAPI(title="WearWise Background Removal")
 session = None
 
 
-@app.on_event("startup")
-def load_model() -> None:
+def get_session():
     global session
-    session = new_session(MODEL_NAME)
+    if session is None:
+        session = new_session(MODEL_NAME)
+    return session
 
 
 @app.get("/")
@@ -33,7 +34,10 @@ async def remove_background(image: UploadFile = File(...)) -> Response:
 
         encoded_input = io.BytesIO()
         source.save(encoded_input, format="JPEG", quality=88, optimize=True)
-        foreground_bytes = remove(encoded_input.getvalue(), session=session)
+        foreground_bytes = remove(
+            encoded_input.getvalue(),
+            session=get_session(),
+        )
         foreground = Image.open(io.BytesIO(foreground_bytes)).convert("RGBA")
 
         canvas = Image.new("RGB", foreground.size, "#FFFFFF")
