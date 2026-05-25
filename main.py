@@ -1,12 +1,18 @@
 import io
 import os
 
+# Keep ONNX/BLAS from allocating thread pools that exhaust Render Free memory.
+os.environ.setdefault("OMP_NUM_THREADS", "1")
+os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
+os.environ.setdefault("MKL_NUM_THREADS", "1")
+os.environ.setdefault("NUMEXPR_NUM_THREADS", "1")
+
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import Response
 from PIL import Image, ImageOps
 from rembg import new_session, remove
 
-MAX_INPUT_DIMENSION = 1024
+MAX_INPUT_DIMENSION = int(os.getenv("MAX_INPUT_DIMENSION", "768"))
 MODEL_NAME = os.getenv("REMBG_MODEL", "u2netp")
 
 app = FastAPI(title="WearWise Background Removal")
@@ -21,8 +27,13 @@ def get_session():
 
 
 @app.get("/")
-def health() -> dict[str, str]:
-    return {"status": "ok", "service": "wearwise-rembg", "model": MODEL_NAME}
+def health() -> dict[str, str | bool]:
+    return {
+        "status": "ok",
+        "service": "wearwise-rembg",
+        "model": MODEL_NAME,
+        "modelLoaded": session is not None,
+    }
 
 
 @app.post("/remove-background")
